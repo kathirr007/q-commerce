@@ -1,0 +1,49 @@
+{
+  "name": "qcommerce",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "typecheck": "nuxt typecheck",
+    "db:generate": "drizzle-kit generate --config=db/drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=db/drizzle.config.ts",
+    "db:push": "drizzle-kit push --config=db/drizzle.config.ts",
+    "db:studio": "drizzle-kit studio --config=db/drizzle.config.ts"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "^1.2.114",
+    "@iconify-json/simple-icons": "^1.2.87",
+    "@maplibre/maplibre-gl-directions": "^0.9.1",
+    "@nuxt/image": "^2.0.0",
+    "@nuxt/ui": "^4.9.0",
+    "@nuxtjs/sitemap": "^8.2.2",
+    "@nuxtjs/supabase": "^2.0.9",
+    "@vee-validate/zod": "^4.15.1",
+    "@vite-pwa/nuxt": "^1.1.1",
+    "@vueuse/core": "^14.3.0",
+    "@vueuse/nuxt": "^14.3.0",
+    "drizzle-orm": "^0.45.2",
+    "maplibre-gl": "^5.24.0",
+    "nuxt": "^4.4.8",
+    "pinia": "^3.0.4",
+    "postgres": "^3.4.9",
+    "tailwindcss": "^4.3.1",
+    "vee-validate": "^4.15.1",
+    "vite": "^8.1.0",
+    "vue-router": "^5.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.16.0",
+    "@types/node": "^26.0.1",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^10.6.0",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.3.5"
+  },
+  "packageManager": "pnpm@11.9.0"
+}
