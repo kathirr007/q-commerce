@@ -9,9 +9,10 @@
 | **UI Framework** | Nuxt UI (Tailwind v4) | 4.9.0 |
 | **Language** | TypeScript | 6.0 |
 | **Mobile** | PWA via `@vite-pwa/nuxt` → Capacitor later | 1.1.1 |
-| **Database** | Supabase (Postgres + real-time + auth + storage) | — |
+| **DB (local dev)** | SQLite via `better-sqlite3` (no network needed) | 12.x |
+| **DB (production)** | Supabase (Postgres + real-time + auth + storage) | — |
 | **Auth SDK** | `@nuxtjs/supabase` (PKCE flow, JWT secret) | 2.0.9 |
-| **DB ORM** | Drizzle ORM | 0.45 |
+| **DB ORM** | Drizzle ORM (dual-driver: sqlite + postgres) | 0.45 |
 | **Payments** | Razorpay | — |
 | **Maps** | MapLibre GL | 5.24 |
 | **SMS** | MSG91 or Amazon SNS | — |
@@ -44,10 +45,17 @@
 │  ┌──────┬──────┬──────┬──────┬──────┬──────┐  │
 │  │ Auth │Catalog│ Cart │Orders│Payment│Admin│  │
 │  └──────┴──────┴──────┴──────┴──────┴──────┘  │
-├────────────────────────────────────────────────┤
-│             Supabase (DB + Auth + Realtime)     │
-└────────────────────────────────────────────────┘
+│        server/utils/db.ts  (useDb())            │
+│        server/plugins/database.ts               │
+├──────────────────┬─────────────────────────────┤
+│  SQLite          │  Supabase (Postgres)         │
+│  (DB_DRIVER=     │  (DB_DRIVER=postgres)        │
+│   sqlite)        │  Auth + Realtime + Storage   │
+│  ./data/*.sqlite │  NUXT_SUPABASE_DB_URL        │
+└──────────────────┴─────────────────────────────┘
 ```
+
+The active driver is selected at startup via `DB_DRIVER` env var. Both drivers share the same Drizzle schema shape; the SQLite schema lives in `db/schema.sqlite.ts` and the Postgres schema in `db/schema.ts`.
 
 ---
 
@@ -55,109 +63,146 @@
 
 ```
 qcommerce/
-├── app/                  # Main Nuxt app (customer facing)
+├── app/                        # Main Nuxt app (customer facing)
+│   ├── assets/css/main.css     # Global Tailwind / CSS
 │   ├── pages/
 │   ├── components/
-│   ├── server/           # API routes + middleware
-│   │   ├── api/
+│   ├── server/
+│   │   ├── api/                # Nitro API routes
+│   │   ├── plugins/
+│   │   │   └── database.ts     # Auto-runs SQLite migrations on startup
 │   │   └── utils/
-│   └── nuxt.config.ts
-├── layers/               # Nuxt layers
-│   ├── admin/            # Admin dashboard layer
-│   │   ├── pages/admin/
-│   │   └── nuxt.config.ts
-│   ├── delivery/         # Delivery partner layer
-│   │   ├── pages/delivery/
-│   │   └── nuxt.config.ts
-│   └── shared/           # Shared composables + types + UI
-│       ├── composables/
-│       ├── types/
-│       └── components/
-├── db/                   # Database schema + migrations (Drizzle)
-├── packages/             # Shared utility packages (optional)
-└── docker/               # Docker config for VPS deployment
+│   │       ├── db.ts           # useDb() — returns Drizzle client for active driver
+│   │       └── supabase.ts     # Supabase server helper
+│   └── types/
+│       └── database.types.ts   # Generated Supabase TS types (pnpm db:types)
+├── db/
+│   ├── schema.ts               # Postgres schema (Drizzle)
+│   ├── schema.sqlite.ts        # SQLite schema (Drizzle)
+│   ├── drizzle.config.ts       # Dual-driver Drizzle config (DB_DRIVER env)
+│   └── migrations/
+│       ├── pg/                 # Postgres migration files
+│       └── sqlite/             # SQLite migration files
+├── scripts/
+│   └── dev.ts                  # Interactive dev launcher (port + DB selector)
+├── data/                       # SQLite database files (gitignored)
+├── nuxt.config.ts
+├── package.json
+└── .env                        # Local env (gitignored; copy from .env.example)
 ```
+
+> **Layers planned but not yet created:** `layers/admin`, `layers/delivery`, `layers/shared`. Admin and delivery routes currently use `routeRules` SPA mode (`/admin/**`, `/delivery/**`) within the single app.
 
 ---
 
 ## Database Schema (Core Entities)
 
+Schema is implemented in both `db/schema.sqlite.ts` (SQLite) and `db/schema.ts` (Postgres). Both are kept in sync manually.
+
 ```
 users
-  id, role (customer|delivery|store_manager|admin), name, phone, email, location
+  id (uuid), name, phone, email (unique),
+  role (customer|delivery|store_manager|admin), location (json), created_at
 
 stores
-  id, name, type (dark_store|retail), location (PostGIS point), status, operating_hours
+  id (uuid), name, type (dark_store|retail),
+  location (json), status (active|inactive), operating_hours (json), created_at
 
 products
-  id, store_id, name, description, price, images[], category_id, status
+  id (uuid), store_id → stores, name, description,
+  price, images (json[]), category_id, status (active|inactive), created_at
 
 inventory
-  id, product_id, store_id, stock_level, reserved_stock
+  id (uuid), product_id → products, store_id → stores,
+  stock_level, reserved_stock
 
 orders
-  id, user_id, store_id, status, total, delivery_address,
-  delivery_fee, payment_status, created_at
+  id (uuid), user_id → users, store_id → stores,
+  status (pending|confirmed|preparing|out_for_delivery|delivered|cancelled),
+  total, delivery_address, delivery_fee (default 20),
+  payment_status (pending|paid|failed|refunded), created_at
 
 order_items
-  id, order_id, product_id, quantity, unit_price
+  id (uuid), order_id → orders, product_id → products,
+  quantity, unit_price
 
 deliveries
-  id, order_id, delivery_partner_id, status,
-  pickup_time, delivered_time, route[]
+  id (uuid), order_id → orders, delivery_partner_id → users,
+  status (assigned|picked_up|in_transit|delivered),
+  pickup_time, delivered_time, route (json[])
 
 payments
-  id, order_id, method, status, transaction_id, amount
+  id (uuid), order_id → orders,
+  method (razorpay|cod), status (pending|paid|failed|refunded),
+  transaction_id, amount
 
 delivery_partners
-  id, user_id, status (online|offline|busy), current_location, vehicle_type
+  id (uuid), user_id → users (unique),
+  status (online|offline|busy), current_location (json),
+  vehicle_type (bike|scooter|car)
 ```
+
+**Indexes (SQLite):** `products(store_id)`, `orders(user_id)`, `orders(store_id)`, `order_items(order_id)`, `deliveries(order_id)`, `inventory(store_id)`
 
 ---
 
 ## Implementation Roadmap (20 Weeks)
 
-### Phase 1: Foundation (Weeks 1-3)
-- Nuxt 4.4 project setup with TypeScript 6.0 (Node 22 + pnpm 11)
-- Supabase project + DB schema setup with Drizzle ORM 0.45
-- Supabase Auth 2.0 (email + phone OTP, PKCE flow, JWT secret)
-- Nuxt UI 4.9 component setup (layout, nav, buttons, forms)
-- Deploy to Railway/Oracle Cloud free tier
+### Phase 1: Foundation (Weeks 1-3) ✅ COMPLETE
+- [x] Nuxt 4.4 project setup with TypeScript 6.0 (Node 22 + pnpm 11)
+- [x] Drizzle ORM 0.45 with **dual-driver support** (SQLite for local dev, Postgres for production)
+  - `db/schema.sqlite.ts` — SQLite schema
+  - `db/schema.ts` — Postgres schema
+  - `db/drizzle.config.ts` — switches on `DB_DRIVER` env var
+- [x] `app/server/utils/db.ts` — `useDb()` singleton, picks driver at startup
+- [x] `app/server/plugins/database.ts` — auto-runs SQLite `CREATE TABLE IF NOT EXISTS` migrations on Nitro startup (no manual migration step needed locally)
+- [x] `scripts/dev.ts` — interactive CLI launcher: prompts for port + DB backend, persists choice to `.env`
+- [x] Supabase Auth (`@nuxtjs/supabase`) wired up — PKCE flow, redirect rules, public route exclusions
+- [x] Nuxt UI 4.9 + Tailwind v4 + icon bundles (lucide, simple-icons)
+- [x] PWA manifest configured (`@vite-pwa/nuxt`)
+- [x] MapLibre GL + `@maplibre/maplibre-gl-directions` installed
+- [x] VeeValidate + Zod installed
+- [x] ESLint configured (stylistic rules)
+- [x] `.gitignore` updated (`data/` excluded)
+- [x] `pnpm db:push:sqlite` working (requires `data/` directory)
 
 ### Phase 2: Customer App Core (Weeks 4-7)
-- Store listing with MapLibre GL 5.24 + OSM map
-- Product catalog + search + filters
-- Cart with Pinia 3.0 (persisted to Supabase)
-- Checkout flow with VeeValidate 4.15 + Zod 3.25
-- Razorpay payment integration
-- Order confirmation page
+- [ ] Store listing with MapLibre GL 5.24 + OSM map
+- [ ] Product catalog + search + filters
+- [ ] Cart with Pinia 3.0 (persisted locally for SQLite dev, Supabase for prod)
+- [ ] Checkout flow with VeeValidate 4.15 + Zod 3.25
+- [ ] Razorpay payment integration
+- [ ] Order confirmation page
 
 ### Phase 3: Admin Dashboard (Weeks 8-10)
-- Admin Nuxt layer (separate layout + middleware + auth role check)
-- Store CRUD
-- Product + inventory management
-- Order management (list, status update)
-- Delivery partner management
+- [ ] Admin section (`/admin/**` — SPA via routeRules, role-gated middleware)
+- [ ] Store CRUD
+- [ ] Product + inventory management
+- [ ] Order management (list, status update)
+- [ ] Delivery partner management
+- [ ] *(Optional later)* Extract to `layers/admin` Nuxt layer
 
 ### Phase 4: Delivery & Real-time (Weeks 11-14)
-- Delivery partner portal (PWA via `@vite-pwa/nuxt` 1.1)
-- Real-time status updates via Supabase Realtime
-- Basic delivery assignment (nearest driver)
-- Order tracking page (customer-facing map)
-- Firebase Cloud Messaging for push notifications
-- SMS via MSG91
+- [ ] Delivery partner portal (`/delivery/**` — SPA via routeRules)
+- [ ] Real-time status updates via Supabase Realtime
+- [ ] Basic delivery assignment (nearest driver)
+- [ ] Order tracking page (customer-facing map)
+- [ ] Firebase Cloud Messaging for push notifications
+- [ ] SMS via MSG91
+- [ ] *(Optional later)* Extract to `layers/delivery` Nuxt layer
 
 ### Phase 5: Analytics (Weeks 15-17)
-- Admin analytics dashboard with real-time stats
-- Export reports (CSV via Nuxt server API)
-- Delivery partner earnings tracking
-- Basic product popularity insights
+- [ ] Admin analytics dashboard with real-time stats
+- [ ] Export reports (CSV via Nuxt server API)
+- [ ] Delivery partner earnings tracking
+- [ ] Basic product popularity insights
 
 ### Phase 6: PWA Polish & App Publishing (Weeks 18-20)
-- `@vite-pwa/nuxt` configuration (offline support, install prompt)
-- Performance optimization (lazy loading, image optimization)
-- Security hardening (rate limiting, input validation, RLS policies in Supabase)
-- Wrap with Capacitor if app store submission is needed
+- [ ] `@vite-pwa/nuxt` offline support + install prompt
+- [ ] Performance optimization (lazy loading, image optimization via `@nuxt/image`)
+- [ ] Security hardening (rate limiting, input validation, RLS policies in Supabase)
+- [ ] Production deploy: switch `DB_DRIVER=postgres` + set `NUXT_SUPABASE_DB_URL`
+- [ ] Wrap with Capacitor if app store submission is needed
 
 ---
 

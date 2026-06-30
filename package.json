@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build",
-    "dev": "nuxt dev",
+    "dev": "tsx scripts/dev.ts",
+    "dev:direct": "nuxt dev",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
@@ -12,9 +13,13 @@
     "db:generate": "drizzle-kit generate --config=db/drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=db/drizzle.config.ts",
     "db:push": "drizzle-kit push --config=db/drizzle.config.ts",
-    "db:studio": "drizzle-kit studio --config=db/drizzle.config.ts"
+    "db:push:pg": "cross-env DB_DRIVER=postgres drizzle-kit push --config=db/drizzle.config.ts",
+    "db:push:sqlite": "cross-env DB_DRIVER=sqlite drizzle-kit push --config=db/drizzle.config.ts",
+    "db:studio": "drizzle-kit studio --config=db/drizzle.config.ts",
+    "db:types": "supabase gen types typescript --linked > app/types/database.types.ts"
   },
   "dependencies": {
+    "@fontsource-variable/public-sans": "^5.2.7",
     "@iconify-json/lucide": "^1.2.114",
     "@iconify-json/simple-icons": "^1.2.87",
     "@maplibre/maplibre-gl-directions": "^0.9.1",
@@ -39,9 +44,16 @@
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.16.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^26.0.1",
+    "@types/prompts": "^2.4.9",
+    "better-sqlite3": "^12.11.1",
+    "cross-env": "^10.1.0",
+    "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
     "eslint": "^10.6.0",
+    "prompts": "^2.4.2",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3",
     "vue-tsc": "^3.3.5"
   },

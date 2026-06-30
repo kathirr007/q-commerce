@@ -1,64 +1,110 @@
-# Nuxt Starter Template
+# Quick Commerce
 
-[![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
+A quick-commerce (rapid grocery/delivery) app built with Nuxt 4, Supabase, and Drizzle ORM. Supports two database backends: **SQLite** for local/offline development and **Supabase (Postgres)** for production.
 
-Use this template to get started with [Nuxt UI](https://ui.nuxt.com) quickly.
+## Tech Stack
 
-- [Live demo](https://starter-template.nuxt.dev/)
-- [Documentation](https://ui.nuxt.com/docs/getting-started/installation/nuxt)
+- **Framework** — Nuxt 4 with Nuxt UI, Pinia, VeeValidate + Zod
+- **Database** — Drizzle ORM over SQLite (local) or Supabase Postgres (remote)
+- **Auth** — Supabase Auth (PKCE flow)
+- **Maps** — MapLibre GL + `@maplibre/maplibre-gl-directions`
+- **PWA** — `@vite-pwa/nuxt` (standalone, auto-update)
+- **Tooling** — pnpm workspaces, ESLint, TypeScript, tsx
 
-<a href="https://starter-template.nuxt.dev/" target="_blank">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png">
-    <img alt="Nuxt Starter Template" src="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png" width="830" height="466">
-  </picture>
-</a>
-
-> The starter template for Vue is on https://github.com/nuxt-ui-templates/starter-vue.
-
-## Quick Start
-
-```bash [Terminal]
-npm create nuxt@latest -- -t ui
-```
-
-## Deploy your own
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-name=starter&repository-url=https%3A%2F%2Fgithub.com%2Fnuxt-ui-templates%2Fstarter&demo-image=https%3A%2F%2Fui.nuxt.com%2Fassets%2Ftemplates%2Fnuxt%2Fstarter-dark.png&demo-url=https%3A%2F%2Fstarter-template.nuxt.dev%2F&demo-title=Nuxt%20Starter%20Template&demo-description=A%20minimal%20template%20to%20get%20started%20with%20Nuxt%20UI.)
-
-## Setup
-
-Make sure to install the dependencies:
+## Getting Started
 
 ```bash
 pnpm install
+cp .env.example .env   # fill in Supabase keys if using remote DB
+pnpm dev               # interactive prompt picks port + database
 ```
 
-## Development Server
+`pnpm dev` launches an interactive CLI (`scripts/dev.ts`) that asks for:
 
-Start the development server on `http://localhost:3000`:
+- **Port** — dev server port (default 3000)
+- **Database** — SQLite (local, no network needed) or Supabase Postgres (remote)
+
+Selections are persisted to `.env` so subsequent runs reuse your last choice.
+
+## Database
+
+The app supports two drivers, controlled by `DB_DRIVER` in `.env`.
+
+| Driver | When to use | Data location |
+|--------|-------------|---------------|
+| `sqlite` | Local / offline development | `./data/qcommerce.sqlite` |
+| `postgres` | Supabase / production | `NUXT_SUPABASE_DB_URL` |
+
+### Schema
+
+Tables: `users`, `stores`, `products`, `inventory`, `orders`, `order_items`, `deliveries`, `delivery_partners`, `payments`
+
+Roles: `customer`, `delivery`, `store_manager`, `admin`  
+Store types: `dark_store`, `retail`  
+Payment methods: `razorpay`, `cod`
+
+### SQLite
+
+Push schema to the local SQLite file:
 
 ```bash
-pnpm dev
+pnpm db:push:sqlite
 ```
 
-## Production
+The `data/` directory and tables are also created automatically on startup by the Nitro server plugin (`app/server/plugins/database.ts`) when `DB_DRIVER=sqlite`.
 
-Build the application for production:
+### Postgres (Supabase)
 
 ```bash
-pnpm build
+pnpm db:push:pg
 ```
 
-Locally preview production build:
+Requires `NUXT_SUPABASE_DB_URL` set in `.env`.
+
+### Other DB commands
 
 ```bash
-pnpm preview
+pnpm db:generate   # generate migration files
+pnpm db:migrate    # apply migrations
+pnpm db:studio     # open Drizzle Studio
+pnpm db:types      # regenerate Supabase TS types → app/types/database.types.ts
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+## Environment Variables
 
-## Renovate integration
+```env
+# Database
+DB_DRIVER=sqlite                          # sqlite | postgres
+SQLITE_DB_PATH=./data/qcommerce.sqlite    # optional override
+NUXT_SUPABASE_DB_URL=postgresql://...     # required for postgres driver
 
-Install [Renovate GitHub app](https://github.com/apps/renovate/installations/select_target) on your repository and you are good to go.
+# Supabase (auth + realtime)
+NUXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NUXT_PUBLIC_SUPABASE_KEY=your-anon-key
+
+# Dev
+PORT=3000
+DEV_LOCATION=office                       # office (sqlite) | home (supabase)
+```
+
+## Route Rules
+
+| Path | Rendering |
+|------|-----------|
+| `/` | Prerendered (static) |
+| `/admin/**` | Client-side only (SPA) |
+| `/delivery/**` | Client-side only (SPA) |
+| All others | SSR |
+
+Auth redirects unauthenticated users to `/login`; public routes (`/`, `/stores/*`, `/products/*`) are excluded.
+
+## Scripts
+
+```bash
+pnpm dev          # interactive dev server launcher (prompts for port + DB)
+pnpm dev:direct   # nuxt dev without the interactive prompts
+pnpm build        # production build
+pnpm preview      # preview production build
+pnpm lint         # ESLint
+pnpm typecheck    # vue-tsc + nuxt typecheck
+```

@@ -55,21 +55,34 @@ export default defineNuxtConfig({
   },
 
   image: {
-    provider: 'ipx',
-    providers: {
-      supabase: {
-        provider: 'supabase',
-        options: {
-          baseURL: process.env.NUXT_PUBLIC_SUPABASE_URL + '/storage/v1/object/public'
-        }
-      }
-    }
+    provider: 'ipx'
   },
 
   routeRules: {
     '/': { prerender: true },
     '/admin/**': { ssr: false },
     '/delivery/**': { ssr: false }
+  },
+
+  icon: {
+    serverBundle: {
+      collections: ['lucide', 'simple-icons']
+    },
+    clientBundle: {
+      scan: true
+    },
+    fetchTimeout: 0,
+    fallbackToApi: false
+  },
+
+  fonts: {
+    providers: {
+      google: false,
+      googleicons: false, // cSpell:ignore googleicons
+      bunny: false,
+      fontshare: false,
+      fontsource: false
+    }
   },
 
   eslint: {

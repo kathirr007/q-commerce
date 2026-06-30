@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "PowerShell(git checkout main)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.reddit.com)",
+      "PowerShell(try { $response = Invoke-WebRequest -Uri \"https://raw.githubusercontent.com/paul-gauthier/aider/main/README.md\" -UseBasicParsing -TimeoutSec 30; $response.Content.Substring\\(0, [Math]::Min\\(5000, $response.Content.Length\\)\\) } catch { $_.Exception.Message })",
+      "PowerShell(try { $response = Invoke-WebRequest -Uri \"https://raw.githubusercontent.com/All-Hands-AI/OpenHands/main/README.md\" -UseBasicParsing -TimeoutSec 30; $response.Content.Substring\\(0, [Math]::Min\\(5000, $response.Content.Length\\)\\) } catch { $_.Exception.Message })",
+      "PowerShell(gh pr view 5630 --repo mercedes-benz.ghe.com/ASI/appsecinsights-mvp --json reviews,comments,title,body 2>&1)",
+      "PowerShell(gh api repos/ASI/appsecinsights-mvp/pulls/5630/comments --hostname mercedes-benz.ghe.com 2>&1)",
+      "PowerShell(npx vitest run src/services/requirementsService.spec.js 2>&1)",
+      "PowerShell(gh issue view 5635 --repo ASI/appsecinsights-mvp --json title,body,comments 2>&1)",
+      "WebFetch(domain:mercedes-benz.ghe.com)",
+      "PowerShell(Get-CimInstance -ClassName Win32_ComputerSystem)",
+      "PowerShell(Get-CimInstance -ClassName Win32_BIOS)"
+    ]
+  }
+}
