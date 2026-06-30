@@ -57,6 +57,13 @@
 
 The active driver is selected at startup via `DB_DRIVER` env var. Both drivers share the same Drizzle schema shape; the SQLite schema lives in `db/schema.sqlite.ts` and the Postgres schema in `db/schema.ts`.
 
+**Why dual-DB?** Restricted network blocks outbound connections to Supabase (port 5432 / HTTPS to `*.supabase.co`). SQLite runs fully local with zero network dependency, so all feature development and UI work happens against SQLite on the restricted network. Supabase is used from home or when testing auth/realtime-specific features.
+
+| Context | `DB_DRIVER` | Auth | Realtime |
+|---------|-------------|------|----------|
+| Restricted network (no internet) | `sqlite` | disabled / mock | not available |
+| Home / CI | `postgres` | Supabase Auth | Supabase Realtime |
+
 ---
 
 ## Project Structure
@@ -167,15 +174,19 @@ delivery_partners
 - [x] `pnpm db:push:sqlite` working (requires `data/` directory)
 
 ### Phase 2: Customer App Core (Weeks 4-7)
-- [ ] Store listing with MapLibre GL 5.24 + OSM map
+> Develop against SQLite locally (`pnpm dev` → restricted network/sqlite). All API routes use `useDb()` — no Supabase-direct calls in server code.
+- [ ] Store listing with MapLibre GL 5.24 + OSM tiles (works offline, no Supabase needed)
 - [ ] Product catalog + search + filters
-- [ ] Cart with Pinia 3.0 (persisted locally for SQLite dev, Supabase for prod)
+- [ ] Cart with Pinia 3.0 (client-side store; no network required)
 - [ ] Checkout flow with VeeValidate 4.15 + Zod 3.25
-- [ ] Razorpay payment integration
+- [ ] Order placement via Nitro API → `useDb()` (works on both SQLite + Postgres)
+- [ ] Razorpay payment integration *(home only — requires network + Supabase prod)*
 - [ ] Order confirmation page
 
 ### Phase 3: Admin Dashboard (Weeks 8-10)
+> All CRUD is through Nitro API routes using `useDb()`, so it works on SQLite at the restricted network. Auth role-check middleware is skipped/mocked when `DB_DRIVER=sqlite` (no Supabase session available).
 - [ ] Admin section (`/admin/**` — SPA via routeRules, role-gated middleware)
+- [ ] Auth guard: enforce `role=admin` when on Postgres; bypass guard in SQLite dev mode
 - [ ] Store CRUD
 - [ ] Product + inventory management
 - [ ] Order management (list, status update)
@@ -183,17 +194,20 @@ delivery_partners
 - [ ] *(Optional later)* Extract to `layers/admin` Nuxt layer
 
 ### Phase 4: Delivery & Real-time (Weeks 11-14)
+> Core delivery logic (assignment, status polling) built against SQLite. Supabase Realtime and push notifications are home-only features — wrap behind `if (DB_DRIVER === 'postgres')` guards.
 - [ ] Delivery partner portal (`/delivery/**` — SPA via routeRules)
-- [ ] Real-time status updates via Supabase Realtime
-- [ ] Basic delivery assignment (nearest driver)
-- [ ] Order tracking page (customer-facing map)
-- [ ] Firebase Cloud Messaging for push notifications
-- [ ] SMS via MSG91
+- [ ] Delivery assignment + status updates via Nitro API + `useDb()` (SQLite-compatible)
+- [ ] Order tracking page with MapLibre GL (works offline with OSM tiles)
+- [ ] Real-time status updates via Supabase Realtime *(Postgres/home only)*
+- [ ] Firebase Cloud Messaging push notifications *(Postgres/home only)*
+- [ ] SMS via MSG91 *(Postgres/home only)*
 - [ ] *(Optional later)* Extract to `layers/delivery` Nuxt layer
 
 ### Phase 5: Analytics (Weeks 15-17)
-- [ ] Admin analytics dashboard with real-time stats
-- [ ] Export reports (CSV via Nuxt server API)
+> All queries via `useDb()` — aggregate queries work on both SQLite and Postgres. Real-time dashboard widgets are Postgres-only.
+- [ ] Admin analytics dashboard — static aggregates via `useDb()` (SQLite-compatible)
+- [ ] Real-time stats widgets via Supabase Realtime *(Postgres/home only)*
+- [ ] Export reports (CSV via Nuxt server API — works on both drivers)
 - [ ] Delivery partner earnings tracking
 - [ ] Basic product popularity insights
 
@@ -209,17 +223,29 @@ delivery_partners
 ## Key Nuxt 4 Patterns
 
 ### Server routes (API endpoints):
+All API routes use `useDb()` so they work on both SQLite (restricted network) and Postgres (home/prod) without changes.
+
 ```typescript
 // server/api/products/[id].get.ts
 export default defineEventHandler(async (event) => {
   const { id } = getRouterParams(event)
-  const { data } = await supabase
-    .from('products')
-    .select('*, stores(*)')
-    .eq('id', id)
-    .single()
-  return data
+  const { db, schema } = useDb()
+  const product = await db
+    .select()
+    .from(schema.products)
+    .where(eq(schema.products.id, id))
+    .get()
+  return product
 })
+```
+
+For Postgres-only features (auth user lookup, realtime subscriptions), check the driver first:
+
+```typescript
+const { driver } = useDb()
+if (driver === 'postgres') {
+  // Supabase Realtime or Auth-specific logic
+}
 ```
 
 ### Auto-imported composables:
