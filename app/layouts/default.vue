@@ -52,11 +52,21 @@
 <script setup lang="ts">
 import { useCartStore } from '~~/stores/cart'
 
-const supabase = useSupabaseClient()
-const user = useSupabaseUser()
+let supabase: any = null
+let user: any = null
+
+try {
+  supabase = useSupabaseClient()
+  user = useSupabaseUser()
+} catch {
+  supabase = null
+  user = null
+}
+
 const cart = useCartStore()
 
 async function logout() {
+  if (!supabase) return
   await supabase.auth.signOut()
   navigateTo('/login')
 }

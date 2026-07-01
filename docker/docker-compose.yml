@@ -3,10 +3,32 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    image: qcommerce:latest
+    container_name: qcommerce
     ports:
       - "3000:3000"
     env_file:
       - ../.env
     environment:
       - NODE_ENV=production
+      - HOST=0.0.0.0
+      - PORT=3000
+    volumes:
+      - qcommerce_data:/app/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    networks:
+      - qcommerce
+
+networks:
+  qcommerce:
+    driver: bridge
+
+volumes:
+  qcommerce_data:
+    driver: local
