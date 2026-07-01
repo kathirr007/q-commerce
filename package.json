@@ -16,7 +16,9 @@
     "db:push:pg": "cross-env DB_DRIVER=postgres drizzle-kit push --config=db/drizzle.config.ts",
     "db:push:sqlite": "cross-env DB_DRIVER=sqlite drizzle-kit push --config=db/drizzle.config.ts",
     "db:studio": "drizzle-kit studio --config=db/drizzle.config.ts",
-    "db:types": "supabase gen types typescript --linked > app/types/database.types.ts"
+    "db:types": "supabase gen types typescript --linked > app/types/database.types.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:seed:pg": "cross-env DB_DRIVER=postgres tsx scripts/seed.ts"
   },
   "dependencies": {
     "@fontsource-variable/public-sans": "^5.2.7",
@@ -33,10 +35,13 @@
     "@vueuse/core": "^14.3.0",
     "@vueuse/nuxt": "^14.3.0",
     "drizzle-orm": "^0.45.2",
+    "firebase": "^12.15.0",
+    "firebase-admin": "^14.1.0",
     "maplibre-gl": "^5.24.0",
     "nuxt": "^4.4.8",
     "pinia": "^3.0.4",
     "postgres": "^3.4.9",
+    "razorpay": "^2.9.6",
     "tailwindcss": "^4.3.1",
     "vee-validate": "^4.15.1",
     "vite": "^8.1.0",

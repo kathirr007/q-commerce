@@ -110,6 +110,45 @@ async function handleSubmit() {
       }
     })
 
+    if (state.paymentMethod === 'razorpay') {
+      const razorpayOrder: any = await $fetch('/api/razorpay/create-order', {
+        method: 'POST',
+        body: { amount: cart.totalAmount + 20, order_id: order.id }
+      })
+
+      const result = await new Promise<any>((resolve, reject) => {
+        const rzp = new (window as any).Razorpay({
+          key: useRuntimeConfig().public.razorpayKeyId,
+          amount: razorpayOrder.amount,
+          currency: razorpayOrder.currency,
+          name: 'QCommerce',
+          order_id: razorpayOrder.id,
+          prefill: { name: state.name, contact: state.phone },
+          handler: (response: any) => resolve(response),
+          modal: { ondismiss: () => reject(new Error('Payment cancelled')) }
+        })
+        rzp.open()
+      })
+
+      await $fetch('/api/razorpay/verify', {
+        method: 'POST',
+        body: {
+          order_id: result.razorpay_order_id,
+          payment_id: result.razorpay_payment_id,
+          razorpay_signature: result.razorpay_signature
+        }
+      })
+
+      await $fetch('/api/payments', {
+        method: 'POST',
+        body: {
+          order_id: order.id,
+          method: 'razorpay',
+          transaction_id: result.razorpay_payment_id
+        }
+      })
+    }
+
     cart.clear()
     router.push(`/orders/${order.id}`)
   } catch (e: any) {

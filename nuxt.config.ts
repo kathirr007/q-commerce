@@ -116,5 +116,11 @@ export default defineNuxtConfig({
         braceStyle: '1tbs'
       }
     }
+  },
+
+  runtimeConfig: {
+    public: {
+      razorpayKeyId: process.env.NUXT_PUBLIC_RAZORPAY_KEY_ID || ''
+    }
   }
 })

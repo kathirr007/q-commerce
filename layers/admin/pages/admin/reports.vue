@@ -38,6 +38,24 @@
     <UCard>
       <template #header>
         <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold">Delivery Partner Earnings</h3>
+        </div>
+      </template>
+      <div v-if="earnings.length === 0" class="py-4 text-center text-sm text-gray-500">No earnings data yet.</div>
+      <div v-else class="space-y-2">
+        <div v-for="e in earnings" :key="e.partnerId" class="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-900">
+          <div>
+            <p class="text-sm font-medium">{{ e.partnerName }}</p>
+            <p class="text-xs text-gray-500">{{ e.completedDeliveries }} deliveries completed</p>
+          </div>
+          <span class="font-semibold text-emerald-600">₹{{ e.totalEarnings }}</span>
+        </div>
+      </div>
+    </UCard>
+
+    <UCard>
+      <template #header>
+        <div class="flex items-center justify-between">
           <h3 class="text-lg font-semibold">Export</h3>
         </div>
       </template>
@@ -56,9 +74,11 @@ useSeoMeta({ title: 'Analytics & Reports' })
 
 const { data: analyticsData } = await useFetch('/api/admin/analytics')
 const { data: popularData } = await useFetch('/api/admin/popular-products')
+const { data: earningsData } = await useFetch('/api/admin/earnings')
 
 const analytics = computed(() => (analyticsData.value || {}) as any)
 const popular = computed(() => (popularData.value || []) as any[])
+const earnings = computed(() => (earningsData.value || []) as any[])
 
 const kpis = computed(() => [
   { label: 'Total Orders', value: String(analytics.value.totalOrders || 0) },

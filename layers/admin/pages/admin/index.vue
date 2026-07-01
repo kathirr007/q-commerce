@@ -52,7 +52,16 @@ useSeoMeta({ title: 'Admin Dashboard' })
 
 const { data: statsData, refresh: refreshStats } = await useFetch('/api/admin/stats')
 const { data: stores } = await useFetch('/api/admin/stores')
-const { data: orders } = await useFetch('/api/admin/orders')
+const { data: orders, refresh: refreshOrders } = await useFetch('/api/admin/orders')
+
+const channel = useAdminChannel(() => {
+  refreshStats()
+  refreshOrders()
+})
+
+onMounted(() => {
+  channel.subscribe()
+})
 
 const stats = computed(() => [
   { label: 'Total Orders', value: String((statsData.value as any)?.totalOrders || 0) },

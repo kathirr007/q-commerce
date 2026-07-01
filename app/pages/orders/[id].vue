@@ -123,6 +123,13 @@ onMounted(async () => {
   const { data } = await useFetch(`/api/orders/${route.params.id}`)
   if (data.value) order.value = data.value as any
   loading.value = false
+
+  const channel = useOrderChannel(route.params.id as string, (payload) => {
+    if (order.value) {
+      Object.assign(order.value, payload)
+    }
+  })
+  channel.subscribe()
 })
 
 const delivery = computed(() => (order.value as any)?.delivery || null)
