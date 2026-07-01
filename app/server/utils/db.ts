@@ -50,3 +50,7 @@ export function useDb() {
   if (!_db) _db = createDatabase()
   return _db
 }
+
+export function useSchema() {
+  return useDb().schema as any
+}

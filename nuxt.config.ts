@@ -6,7 +6,8 @@ export default defineNuxtConfig({
     '@nuxtjs/sitemap',
     '@nuxt/image',
     '@vite-pwa/nuxt',
-    '@vueuse/nuxt'
+    '@vueuse/nuxt',
+    '@pinia/nuxt'
   ],
 
   devtools: {
@@ -39,14 +40,37 @@ export default defineNuxtConfig({
     manifest: {
       name: 'Quick Commerce',
       short_name: 'QCommerce',
+      description: 'Get everything delivered in minutes',
       theme_color: '#10b981',
       background_color: '#ffffff',
       display: 'standalone',
       scope: '/',
-      start_url: '/'
+      start_url: '/',
+      icons: [
+        { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }
+      ]
     },
     workbox: {
-      globPatterns: ['**/*.{js,css,html,png,svg,ico}']
+      globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+      runtimeCaching: [
+        {
+          urlPattern: /^https:\/\/demotiles\.maplibre\.org\/.*/,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'map-tiles',
+            expiration: { maxEntries: 100, maxAgeSeconds: 86400 * 30 }
+          }
+        },
+        {
+          urlPattern: /^\/api\/.*/,
+          handler: 'NetworkFirst',
+          options: { cacheName: 'api-cache', expiration: { maxEntries: 50, maxAgeSeconds: 300 } }
+        }
+      ]
+    },
+    client: {
+      installPrompt: true
     }
   },
 

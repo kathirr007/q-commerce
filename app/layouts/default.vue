@@ -7,14 +7,25 @@
           QCommerce
         </NuxtLink>
 
-        <nav class="flex items-center gap-4">
+        <nav class="flex items-center gap-2">
+          <UButton to="/stores" color="neutral" variant="ghost" icon="lucide:store" />
+
+          <UButton to="/cart" color="neutral" variant="ghost" class="relative">
+            <UIcon name="lucide:shopping-cart" class="h-5 w-5" />
+            <UBadge v-if="cart.totalItems > 0" color="success" size="xs" class="absolute -right-1 -top-1">
+              {{ cart.totalItems }}
+            </UBadge>
+          </UButton>
+
+          <UButton to="/orders" color="neutral" variant="ghost" icon="lucide:package" />
+
           <template v-if="user">
             <span class="text-sm text-gray-600 dark:text-gray-400">{{ user.email }}</span>
-          <UButton color="neutral" variant="ghost" @click="logout">
-            Logout
-          </UButton>
-        </template>
-        <template v-else>
+            <UButton color="neutral" variant="ghost" @click="logout">
+              Logout
+            </UButton>
+          </template>
+          <template v-else>
             <UButton to="/login" variant="ghost" color="neutral">
               Sign In
             </UButton>
@@ -39,8 +50,11 @@
 </template>
 
 <script setup lang="ts">
+import { useCartStore } from '~~/stores/cart'
+
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
+const cart = useCartStore()
 
 async function logout() {
   await supabase.auth.signOut()

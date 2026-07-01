@@ -1,57 +1,36 @@
 export const useOrder = () => {
-  const supabase = useSupabaseClient()
   const orders = ref<any[]>([])
 
   async function fetchOrders() {
-    const { data } = await (supabase as any)
-      .from('orders')
-      .select('*, order_items(*)')
-      .order('created_at', { ascending: false })
-
-    if (data) orders.value = data
+    const { data, error } = await useFetch('/api/orders')
+    if (data.value) orders.value = data.value as any[]
+    return orders.value
   }
 
   async function placeOrder(items: Array<{ product_id: string; quantity: number; unit_price: number }>, storeId: string, deliveryAddress: string) {
-    const user = useSupabaseUser()
-    if (!user.value) throw new Error('Not authenticated')
-
-    const total = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
-
-    const { data: order, error } = await (supabase as any)
-      .from('orders')
-      .insert({
-        user_id: user.value.id,
+    const { data, error } = await useFetch('/api/orders', {
+      method: 'POST',
+      body: {
         store_id: storeId,
-        total,
         delivery_address: deliveryAddress,
-        delivery_fee: 20,
-        status: 'pending',
-        payment_status: 'pending'
-      })
-      .select()
-      .single()
+        items,
+        payment_method: 'cod'
+      }
+    })
 
-    if (error) throw error
+    if (error.value) throw new Error(error.value.statusMessage || 'Failed to place order')
+    return data.value
+  }
 
-    const orderItems = items.map(item => ({
-      order_id: order.id,
-      product_id: item.product_id,
-      quantity: item.quantity,
-      unit_price: item.unit_price
-    }))
-
-    const { error: itemsError } = await (supabase as any)
-      .from('order_items')
-      .insert(orderItems)
-
-    if (itemsError) throw itemsError
-
-    return order
+  async function getOrder(id: string) {
+    const { data } = await useFetch(`/api/orders/${id}`)
+    return data.value
   }
 
   return {
     orders,
     fetchOrders,
-    placeOrder
+    placeOrder,
+    getOrder
   }
 }
